@@ -1,34 +1,71 @@
-import pandas as pd
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.animation import FuncAnimation
+import matplotlib.animation as animation
 
-# Načtení dat z CSV souboru
-file_path = 'n-body.dat'
-data = pd.read_csv(file_path, dtype={'id': int, 'time': float, 'x': float, 'y': float, 'z': float})
+PATH = "./n-body.dat"
+PADDING = 10
 
-# Předpokládáme, že data obsahují sloupce 'id', 'time', 'x', 'y', 'z'
-# Případně upravte názvy sloupců podle skutečného obsahu souboru
-id_column = 'id'
-time_column = 'time'
-x_column = 'x'
-y_column = 'y'
-z_column = 'z'
+def get_extreme(extreme, coord, data):	
+	return extreme([sample[coord] for sample in data])
 
-# Získání unikátních identifikátorů planet
-planet_ids = data[id_column].unique()
+def get_extremes(data):
+	max_extreme = (
+		get_extreme(max, "x", data) + PADDING, 
+		get_extreme(max, "y", data) + PADDING, 
+		get_extreme(max, "z", data) + PADDING
+	)
+	
+	min_extreme = (
+		get_extreme(min, "x", data) - PADDING, 
+		get_extreme(min, "y", data) - PADDING, 
+		get_extreme(min, "z", data) - PADDING
+	)
+
+	count = get_extreme(max, "id", data)+1
+
+	return count, max_extreme, min_extreme
+
+def read_data():
+	data = []
+
+	with open(PATH, "r") as f:
+		lines = f.readlines()
+		for line in lines:
+			split = line.split(' ')
+			sample = dict()
+			sample["time"] = float(split[0])
+			sample["id"] = int(split[1])
+			sample["x"] = float(split[2])
+			sample["y"] = float(split[3])
+			sample["z"] = float(split[4])
+			data.append(sample)
+
+	return data
+
+data = read_data()
+count, max_ex, min_ex = get_extremes(data)
+
+filtered_data = []
+for i in range(count):
+	filtered_data.append([sample for sample in data if sample["id"] == i])
 
 fig, ax = plt.subplots(1, 1)
 
 def animate(i):
 	ax.clear()
-	# Get the point from the points list at index i
-	# print(data["id"][i])
-	# Plot that point using the x and y coordinates
-	ax.plot(data["x"][i], data["y"][i], color='green', label='original', marker='o')
-	# # Set the x and y axis to display a fixed range
-	ax.set_xlim([1.9, 2.09])
-	ax.set_ylim([1.5, 2.5])
 
-ani = FuncAnimation(fig, animate, frames=100, interval=100, repeat=False)
+	for j in range(count):		
+		ax.plot(filtered_data[j][i]["x"], filtered_data[j][i]["y"], color='green', label='original', marker='o')
+
+	ax.set_xlim([min_ex[0], max_ex[0]])
+	ax.set_ylim([min_ex[1], max_ex[1]])
+
+
+ani = animation.FuncAnimation(fig, animate, frames=int(len(data)/count), interval=50, repeat=False)
+
+# To save the animation using Pillow as a gif
+writer = animation.PillowWriter(fps=15,
+                                metadata=dict(artist='Me'),
+                                bitrate=1800)
+ani.save('n-body.gif', writer=writer)
+
 plt.show()
